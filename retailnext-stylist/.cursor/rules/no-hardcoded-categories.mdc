@@ -1,0 +1,69 @@
+---
+description: All product categories must be derived from catalog.json at runtime — never hardcoded
+globs: ["src/**/*.tsx", "src/**/*.ts"]
+alwaysApply: false
+---
+
+# No Hardcoded Categories
+
+The catalog has ~140 unique `articleType` values, ~45 unique `subCategory` values, and so on. These are derived from the actual cookbook dataset and **change** if the upstream pipeline reruns with different filtering. Any hardcoded list of categories in this codebase will silently drift out of sync with the data.
+
+## Rule
+
+The following lists must be derived from `catalog.json` at runtime, never written as literal arrays:
+
+- `articleType` values (used in homepage filter pills, vision analysis prompt)
+- `subCategory` values (used in results page grouping)
+- `gender` values, `season` values, `usage` values, `baseColour` values
+
+## Correct pattern
+
+```typescript
+import catalog from "@/data/catalog.json";
+
+const articleTypes = useMemo(
+  () => [...new Set(catalog.map((p) => p.articleType))].sort(),
+  []
+);
+```
+
+For the vision analysis prompt, pass the derived list in:
+
+```typescript
+const prompt = imageAnalysisPrompt(articleTypes);  // articleTypes from catalog
+```
+
+For the results page grouping, group by the matched products' actual `subCategory`:
+
+```typescript
+const grouped: Record<string, Product[]> = {};
+for (const p of matchedProducts) {
+  const key = p.subCategory || p.articleType;
+  (grouped[key] ??= []).push(p);
+}
+```
+
+## Anti-patterns
+
+```typescript
+// ❌ Hardcoded list
+const CATEGORIES = ["Tshirts", "Shirts", "Casual Shoes", "Dresses"];
+
+// ❌ Hardcoded vision prompt categories
+const prompt = `... category must be one of: Tshirts, Shirts, Dresses ...`;
+
+// ❌ Hardcoded result group order
+const GROUP_ORDER = ["Topwear", "Bottomwear", "Footwear"];
+
+// ❌ Hardcoded gender labels (the catalog uses "Men"/"Women" — match exactly)
+const GENDERS = ["Male", "Female"];
+```
+
+## When in doubt
+
+If you find yourself typing a category name as a string literal in any file other than `src/data/catalog.json`, stop. Derive it from catalog instead. The only exceptions are:
+
+- The four valid `gender` values for the conversation system prompt's collected fields ("Women" | "Men")
+- The four valid `season` values ("Summer" | "Winter" | "Fall" | "Spring")
+
+These are intent-collection vocabulary, not catalog categories, and they're constrained by the `Intent` type in `src/types/index.ts`.

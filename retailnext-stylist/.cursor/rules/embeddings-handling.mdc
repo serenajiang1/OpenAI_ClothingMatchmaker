@@ -1,0 +1,67 @@
+---
+description: catalog_with_embeddings.json must be fetched at runtime, never imported — the file is too large for the bundler
+globs: ["src/**/*.ts", "src/**/*.tsx"]
+alwaysApply: false
+---
+
+# Embeddings File Handling
+
+`catalog_with_embeddings.json` is ~80–100 MB. It contains the full catalog (~30,000 products) with 256-dim embeddings on each.
+
+## Rule
+
+- **Location:** `public/data/catalog_with_embeddings.json` — served as a static asset.
+- **Loading:** `fetch("/data/catalog_with_embeddings.json")` at runtime, only when the RAG pipeline needs it (Stage 4).
+- **Caching:** module-level variable in `src/lib/pipeline.ts` so repeated runs in the same session reuse the loaded data.
+- **Never imported.** Vite will attempt to inline a JSON file imported from `src/`, which will OOM the bundler or produce a 100MB JS chunk.
+
+## Correct pattern (`src/lib/pipeline.ts`)
+
+```typescript
+import type { EmbeddedProduct } from "@/types";
+
+let _catalogCache: EmbeddedProduct[] | null = null;
+
+export async function loadEmbeddedCatalog(): Promise<EmbeddedProduct[]> {
+  if (_catalogCache) return _catalogCache;
+  const res = await fetch("/data/catalog_with_embeddings.json");
+  if (!res.ok) throw new Error(`Failed to load embeddings: ${res.status}`);
+  _catalogCache = await res.json();
+  return _catalogCache!;
+}
+```
+
+Pre-warm the fetch in parallel with DALL-E (Stage 2) so it's loaded by the time Stage 4 needs it:
+
+```typescript
+const catalogPromise = loadEmbeddedCatalog();   // start fetching now
+const dalleUrl = await generateOutfitImage(intent);
+// ... vision analysis ...
+const catalog = await catalogPromise;           // already done by now
+```
+
+## Contrast — `catalog.json` (the small one) IS imported
+
+`src/data/catalog.json` is ~10–15 MB and has no embeddings. **This one is imported normally** because it's used at module-init time (e.g. for the homepage product grid):
+
+```typescript
+import catalog from "@/data/catalog.json";   // ✓ correct for the small file
+```
+
+The rule is: **embeddings → fetch, no embeddings → import.**
+
+## Anti-patterns
+
+```typescript
+// ❌ Imports the large file — will break the bundler
+import embeddedCatalog from "@/data/catalog_with_embeddings.json";
+
+// ❌ Loads via fetch but doesn't cache — re-downloads on every pipeline run
+const res = await fetch("/data/catalog_with_embeddings.json");
+
+// ❌ Wrong path (file is in public/data/, not src/data/)
+fetch("/src/data/catalog_with_embeddings.json")
+
+// ❌ Imports the small catalog with `await fetch` (overkill, breaks SSR)
+const catalog = await (await fetch("/data/catalog.json")).json();
+```

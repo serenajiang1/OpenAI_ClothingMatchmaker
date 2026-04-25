@@ -1,0 +1,77 @@
+---
+description: shadcn/ui requires path aliases configured in three places — missing any one silently breaks all @/ imports
+globs: ["tsconfig.json", "tsconfig.app.json", "vite.config.ts"]
+alwaysApply: false
+---
+
+# Path Aliases — All Three Or Nothing
+
+shadcn/ui generates components that import via `@/` (e.g. `import { Button } from "@/components/ui/button"`). For this to resolve, the alias `@` → `./src` must be declared in **three separate places**. Missing any one breaks shadcn imports silently — the dev server starts, then components fail to resolve.
+
+## Required configuration
+
+### `tsconfig.json` (root)
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+### `tsconfig.app.json` (Vite-generated, must be patched)
+
+The Vite template generates this file separately. **Add `baseUrl` and `paths` here too** — the root tsconfig alone is not enough because Vite's TS check uses `tsconfig.app.json` for the `src/` build. Merge into the existing `compilerOptions`:
+
+```json
+{
+  "compilerOptions": {
+    ...existing options...,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
+  }
+}
+```
+
+### `vite.config.ts`
+
+```typescript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+});
+```
+
+`path` and `__dirname` need `@types/node` installed as a dev dependency.
+
+## Verification
+
+After configuring all three, run:
+
+```bash
+npx tsc --noEmit
+```
+
+If this errors with `Cannot find module '@/...'`, one of the three is missing or wrong.
+
+## Anti-patterns
+
+- ❌ Only configuring `vite.config.ts` — the dev server resolves at runtime but TypeScript and editor IntelliSense break.
+- ❌ Only configuring `tsconfig.json` — TS resolves but Vite's bundler doesn't.
+- ❌ Only configuring `tsconfig.app.json` — root config is needed for editor tooling.
+- ❌ Using `~/` or `src/` as the alias — shadcn hardcodes `@/` in its generated components.

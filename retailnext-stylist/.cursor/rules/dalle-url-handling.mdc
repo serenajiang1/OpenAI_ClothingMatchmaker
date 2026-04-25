@@ -1,0 +1,66 @@
+---
+description: DALL-E URLs are passed directly to vision and to img tags — never fetched or base64-encoded client-side
+globs: ["src/lib/pipeline.ts", "src/components/LoadingScreen.tsx", "src/components/ResultsScreen.tsx"]
+alwaysApply: false
+---
+
+# DALL-E URL Handling
+
+DALL-E 3 returns a temporary Azure blob storage URL (e.g. `https://oaidalleapiprodscus.blob.core.windows.net/...`). The URL works for two things:
+
+1. Display in an `<img>` tag — works fine, browser fetches the image directly.
+2. Pass to the vision API as `image_url` — the OpenAI API server fetches it server-side.
+
+## Rule
+
+**Never `fetch()` the DALL-E URL from the browser.** Never convert it to base64. Just use the URL string directly in both contexts.
+
+The Azure blob URL has restrictive CORS that blocks browser-side `fetch`. Even if it didn't, doing so adds latency, doubles bandwidth, and serves no purpose — the vision API accepts URLs natively.
+
+## Correct patterns
+
+### Pipeline: pass URL string directly to vision
+
+```typescript
+// src/lib/pipeline.ts
+const res = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: imageAnalysisPrompt(articleTypes) },
+        { type: "image_url", image_url: { url: dalleUrl } },  // ✓ URL string
+      ],
+    },
+  ],
+  response_format: { type: "json_object" },
+  temperature: 0.2,
+});
+```
+
+### Display: use URL directly in img src
+
+```tsx
+// src/components/LoadingScreen.tsx and ResultsScreen.tsx
+<img src={dalleImageUrl} alt="Style inspiration" />   {/* ✓ */}
+```
+
+## Anti-patterns
+
+```typescript
+// ❌ Fetching the URL client-side will fail with CORS error
+const blob = await fetch(dalleUrl).then((r) => r.blob());
+
+// ❌ Converting to base64 adds 30+ seconds for no benefit
+const base64 = await blobToBase64(blob);
+const visionInput = { type: "image_url", image_url: { url: `data:image/png;base64,${base64}` } };
+
+// ❌ Downloading then re-serving via object URL
+const objectUrl = URL.createObjectURL(blob);
+<img src={objectUrl} />
+```
+
+## Lifetime
+
+The DALL-E URL is valid for ~1 hour. The pipeline uses it twice (vision call, then UI display) within seconds of each other, so expiry is not a concern. Do not store the URL in localStorage or expect it to work later — for the demo, each run generates a fresh URL.

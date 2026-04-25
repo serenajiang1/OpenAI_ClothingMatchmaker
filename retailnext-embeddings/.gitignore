@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+public/images
+catalog.json
+public/data/*.json
+.cursor/
