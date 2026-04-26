@@ -117,23 +117,10 @@ export function ProductQuickViewModal({
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button
-                type="button"
-                className={`rounded-soft px-6 transition-colors ${
-                  reserved ? "bg-emerald-700 text-white hover:bg-emerald-800" : "bg-ink text-cream hover:bg-ink/90"
-                }`}
-                onClick={() => {
-                  const next = !reserved;
-                  onReservedChange(next);
-                  toast(next ? "Reserved — we'll hold it for 24 hours." : "Reservation released.");
-                }}
-              >
-                {reserved ? "Reserved" : "Reserve in store"}
-              </Button>
               {showAddToCart ? (
                 <Button
                   type="button"
-                  className="rounded-soft bg-accent text-ink hover:bg-accent/90"
+                  className="rounded-soft bg-ink px-6 text-cream shadow-sm hover:bg-ink/90"
                   onClick={() => {
                     const added = addToCart(product.id);
                     if (added) {
@@ -144,6 +131,26 @@ export function ProductQuickViewModal({
                   Add to cart
                 </Button>
               ) : null}
+              <Button
+                type="button"
+                variant={showAddToCart ? "outline" : "default"}
+                className={
+                  showAddToCart
+                    ? reserved
+                      ? "rounded-soft border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900"
+                      : "rounded-soft border-ink/20 bg-panel/80 text-ink hover:bg-sand"
+                    : reserved
+                      ? "rounded-soft bg-emerald-700 text-white hover:bg-emerald-800"
+                      : "rounded-soft bg-ink text-cream hover:bg-ink/90"
+                }
+                onClick={() => {
+                  const next = !reserved;
+                  onReservedChange(next);
+                  toast(next ? "Reserved — we'll hold it for 24 hours." : "Reservation released.");
+                }}
+              >
+                {reserved ? "Reserved" : "Reserve in store"}
+              </Button>
             </div>
           </div>
         </div>

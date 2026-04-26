@@ -36,6 +36,12 @@ export default function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const articleTypes = useMemo(() => [...new Set(TYPED_CATALOG.map((p) => p.articleType))].sort(), []);
+  /** Homepage category pills: omit article types that only exist on Free Items (e.g. Free Gifts). */
+  const homeFilterArticleTypes = useMemo(
+    () =>
+      [...new Set(TYPED_CATALOG.filter((p) => p.masterCategory !== "Free Items").map((p) => p.articleType))].sort(),
+    []
+  );
 
   const { state, grouped, run } = usePipeline(articleTypes);
   const freeGift = useMemo(
@@ -89,7 +95,7 @@ export default function App() {
           {screen === "home" && (
             <HomeScreen
               catalog={TYPED_CATALOG}
-              articleTypes={articleTypes}
+              articleTypes={homeFilterArticleTypes}
               onSearch={(q) => {
                 setSeedQuery(q);
                 setScreen("chat");
