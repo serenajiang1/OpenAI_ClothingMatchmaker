@@ -9,7 +9,12 @@ export interface CatalogProduct {
   usage: string;
   baseColour: string;
   image: string;
+  /** Present when catalog JSON includes it (e.g. future pipeline); otherwise sort falls back to numeric id. */
+  year?: string;
 }
+
+/** Product after RAG dedupe; `matchQuery` is the vision item text that produced the winning score. */
+export type ScoredCatalogProduct = CatalogProduct & { score: number; matchQuery?: string };
 
 export interface EmbeddedProduct extends CatalogProduct {
   embedding: number[];
@@ -40,7 +45,12 @@ export interface MatchResult {
   matches: Array<CatalogProduct & { score: number }>;
 }
 
-export type Screen = "home" | "chat" | "loading" | "results";
+export type Screen = "home" | "chat" | "loading" | "results" | "cart";
+
+export interface CartItem {
+  id: string;
+  qty: number;
+}
 
 export interface PipelineState {
   intent: Intent | null;

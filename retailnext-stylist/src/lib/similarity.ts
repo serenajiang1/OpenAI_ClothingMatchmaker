@@ -41,16 +41,18 @@ export function matchItems(
 
 export function dedupeAndGroup(
   results: MatchResult[]
-): Record<string, Array<CatalogProduct & { score: number }>> {
-  const seen = new Map<string, CatalogProduct & { score: number }>();
+): Record<string, Array<CatalogProduct & { score: number; matchQuery?: string }>> {
+  const seen = new Map<string, CatalogProduct & { score: number; matchQuery?: string }>();
   for (const r of results) {
     for (const m of r.matches) {
       const existing = seen.get(m.id);
-      if (!existing || m.score > existing.score) seen.set(m.id, m);
+      if (!existing || m.score > existing.score) {
+        seen.set(m.id, { ...m, matchQuery: r.query });
+      }
     }
   }
 
-  const grouped: Record<string, Array<CatalogProduct & { score: number }>> = {};
+  const grouped: Record<string, Array<CatalogProduct & { score: number; matchQuery?: string }>> = {};
   for (const p of seen.values()) {
     const key = p.subCategory || p.articleType;
     (grouped[key] ??= []).push(p);

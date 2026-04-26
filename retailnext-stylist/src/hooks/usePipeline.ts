@@ -5,7 +5,7 @@ import {
   matchAgainstCatalog,
   loadEmbeddedCatalog,
 } from "@/lib/pipeline";
-import type { Intent, PipelineState, CatalogProduct } from "@/types";
+import type { Intent, PipelineState, ScoredCatalogProduct } from "@/types";
 
 export function usePipeline(articleTypes: string[]) {
   const [state, setState] = useState<PipelineState>({
@@ -16,7 +16,7 @@ export function usePipeline(articleTypes: string[]) {
     stage: "idle",
     error: null,
   });
-  const [grouped, setGrouped] = useState<Record<string, Array<CatalogProduct & { score: number }>> | null>(
+  const [grouped, setGrouped] = useState<Record<string, ScoredCatalogProduct[]> | null>(
     null
   );
 

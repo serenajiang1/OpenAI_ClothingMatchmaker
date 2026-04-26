@@ -48,7 +48,7 @@ fi
 echo "OK: DALL-E URL passed directly to vision and img"
 
 # 6. Data files in correct locations
-echo "[6/6] Data files in place..."
+echo "[6/11] Data files in place..."
 test -f src/data/catalog.json || { echo "FAIL: src/data/catalog.json missing"; exit 1; }
 test -f public/data/catalog_with_embeddings.json || { echo "FAIL: public/data/catalog_with_embeddings.json missing"; exit 1; }
 IMG_COUNT=$(ls public/images/*.jpg 2>/dev/null | wc -l)
@@ -58,5 +58,45 @@ if [ "$IMG_COUNT" -lt "$CATALOG_COUNT" ]; then
   exit 1
 fi
 echo "OK: all data files in place ($IMG_COUNT product images, catalog has $CATALOG_COUNT)"
+
+# 7. New lib files exist
+echo "[7/11] Free gift, pricing, cart libs..."
+test -f src/lib/free-gift.ts || { echo "FAIL: src/lib/free-gift.ts missing"; exit 1; }
+test -f src/lib/pricing.ts || { echo "FAIL: src/lib/pricing.ts missing"; exit 1; }
+test -f src/lib/cart.ts || { echo "FAIL: src/lib/cart.ts missing"; exit 1; }
+echo "OK: required lib files present"
+
+# 8. No hardcoded prices in components
+echo "[8/11] No hardcoded prices in components..."
+PRICE_LITERALS=$(grep -rn --include="*.tsx" --include="*.ts" -E '\$[0-9]+\.[0-9]{2}' src/components || true)
+if [ -n "$PRICE_LITERALS" ]; then
+  echo "FAIL: hardcoded price literals found in components:"
+  echo "$PRICE_LITERALS"
+  exit 1
+fi
+echo "OK: no hardcoded price literals in components"
+
+# 9. Fallback product id usage only in free-gift.ts
+echo "[9/11] Fallback product id scoped correctly..."
+ID_MATCHES=$(grep -rn --include="*.ts" --include="*.tsx" '53619' src || true)
+if [ -n "$ID_MATCHES" ]; then
+  NON_FREE_GIFT=$(echo "$ID_MATCHES" | grep -v 'src/lib/free-gift.ts' || true)
+  if [ -n "$NON_FREE_GIFT" ]; then
+    echo "FAIL: 53619 appears outside src/lib/free-gift.ts:"
+    echo "$NON_FREE_GIFT"
+    exit 1
+  fi
+fi
+echo "OK: fallback id appears only where expected"
+
+# 10. Homepage excludes Free Items in rows
+echo "[10/11] Homepage free-item filtering..."
+grep -q 'Free Items' src/components/HomeScreen.tsx || { echo "FAIL: HomeScreen missing Free Items filtering"; exit 1; }
+echo "OK: HomeScreen includes Free Items filtering logic"
+
+# 11. Cart screen exists
+echo "[11/11] Cart screen exists..."
+test -f src/components/CartScreen.tsx || { echo "FAIL: src/components/CartScreen.tsx missing"; exit 1; }
+echo "OK: cart screen exists"
 
 echo "=== ALL CHECKS PASSED ==="

@@ -94,7 +94,11 @@ export function ChatScreen({ seedQuery, onIntent, onBack }: Props) {
           disabled={loading}
           className="flex-1 h-12 bg-transparent border-ink/20 rounded-none"
         />
-        <Button onClick={submit} disabled={loading} className="h-12 px-6 rounded-none bg-ink hover:bg-accent">
+        <Button
+          onClick={submit}
+          disabled={loading}
+          className="h-12 px-6 rounded-soft bg-ink text-cream hover:bg-accent disabled:bg-ink/50 disabled:text-cream/80"
+        >
           Send
         </Button>
       </div>
